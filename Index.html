@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Assignment 2</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+<!--Mapbox API used for to load the basemap layer--> 
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.0.1/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.0.1/mapbox-gl.css" rel="stylesheet" />
+<style>
+	body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Helvetica Neue', Helvetica, Arial, Sans-serif;
+}
+
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+}
+
+h1 {
+  font-size: 20px;
+  line-height: 30px;
+}
+
+h2 {
+  font-size: 14px;
+  line-height: 20px;
+  margin-bottom: 10px;
+}
+
+a {
+  text-decoration: none;
+  color: #2dc4b2;
+}
+
+#console {
+  position: absolute;
+  width: 300px;
+  margin: 10px;
+  padding: 10px 20px;
+  background-color: white;
+}
+
+.session {
+  margin-bottom: 20px;
+}
+
+.row {
+  height: 6px;
+  width: 100%;
+}
+
+.label {
+  width: 15%;
+  display: inline-block;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+  <div id='map'></div>
+  <div id='console'>
+    <h1>City of Toronto Homicides</h1>
+    <p>Data: <a href='https://data.torontopolice.on.ca/datasets/homicide-asr-rc-tbl-002'>Homicides</a> in the City of Toronto from 2004 to 2019</p>
+      
+    <!--Slider bar for the years starting from 2004 to 2019-->
+    <div class="session" id="sliderbar">
+        <h2>Year: <label id="active-year">2004</label></h2>
+        <input
+          id="slider"
+          class="row"
+          type="range"
+          min="2004"
+          max="2019"
+          step="1"
+          value="0"
+          />
+        </div>
+        <div class="session">
+          <h2>Homicide Type</h2>
+          <div class="row" id="filters">
+            <input
+              id="all"
+              type="radio"
+              name="toggle"
+              value="all"
+              checked="checked"
+            />
+            <!--Radio button options for the homicide types within the legend-->
+            <label for="all">All</label>
+            <input id="Shooting" type="radio" name="toggle" value="Shooting" />
+            <label for="Shooting">Shooting</label>
+            <input id="Stabbing" type="radio" name="toggle" value="Stabbing" />
+            <label for="Stabbing">Stabbing</label>
+            <input id="Other" type="radio" name="toggle" value="Other" />
+            <label for="Other">Other</label>
+       </div>
+    </div>
+    </div>  
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiZGlvYWgiLCJhIjoiY2trb2pxNzN2MWZ3djJ2b2M1MG15bXh5OSJ9.aKBEO0kTaWuuGGjP3S0ahw';
+
+var map = new mapboxgl.Map({
+  container: 'map', // container element id
+  style: 'mapbox://styles/mapbox/streets-v11',
+  center: [-79.4300, 43.6950], // initial map center in [lon, lat]
+  zoom: 10.5
+});
+// map layer added by linking external URL provided in GitHub repository 
+map.on('load', function() {
+  var filteryear = ['==', ['number',['get', 'occurrence_year']], 2011]
+  var filterhomicide = ['!=', ['string', ['get', 'homicide_type']], 'placeholder'];
+  
+  map.addLayer({
+    id: 'homicides',
+    type: 'circle',
+    source:  {
+      type: 'geojson',
+      data: 'https://raw.githubusercontent.com/R-Yu-Ryerson/Assignment-2-/main/Homicide.geojson' // replace this with the url of your own geojson
+    },
+  
+  paint: {
+    'circle-color': 'rgb(171, 72, 33)'
+  },
+
+  'filter': ['all', filteryear, filterhomicide]
+  });
+
+  // update year filter when the slider is dragged
+  document
+    .getElementById('slider')
+    .addEventListener('input', function (e) {
+      var year = parseInt(e.target.value);
+      // update the map
+      filteryear = ['==', ['number',['get', 'occurrence_year']], year]
+      map.setFilter('homicides', ['all',filteryear, filterhomicide]);
+    
+      // updates the slider in increments of 1 year from 2004 to 2019 to reflect the data on the map
+      var year2019 = year % 2019 ? year % 2019 : 2019;
+
+      // update text in the UI to change the active year based on the slider position
+      document.getElementById('active-year').innerText = year2019;
+    });
+
+    document
+          .getElementById('filters')
+          .addEventListener('change', function (e) {
+            var homicide = e.target.value;
+            // match expression used to filter the data to generate requested filter of homicide types
+            if (homicide === 'all') {
+              filterhomicide = ['!=', ['string', ['get', 'homicide_type']], 'placeholder'];
+            } else if (homicide === 'Shooting') {
+              filterhomicide = [
+                'match',
+                ['get', 'homicide_type'],
+                ['all', 'Stabbing', 'Other'],
+                true, false, 
+              ];
+            } else if (homicide === 'Stabbing') {
+              filterhomicide = [
+                'match',
+                ['get', 'homicide_type'],
+                ['all', 'Shooting', 'Other'],
+                true, false,
+              ];
+            } else if (homicide === 'Other') {
+              filterhomicide = [
+                'match',
+                ['get', 'homicide_type'],
+                ['all', 'Shooting', 'Stabbing'],
+                true, false,
+              ];
+            } else {
+              console.log('error');
+            }
+            map.setFilter('homicides',['all', filteryear, filterhomicide]);
+          });
+      });
+    </script>  
+  </body>
+</html>
